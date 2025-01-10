@@ -1,8 +1,7 @@
 import config
-import http.client
-import json
+import requests
 
-conn = http.client.HTTPSConnection("nfl-api-data.p.rapidapi.com")
+base_url = "https://nfl-api-data.p.rapidapi.com"
 
 headers = {
     'x-rapidapi-key': config.api_key,
@@ -12,11 +11,16 @@ headers = {
 #######################
 ## GET INFO FROM API ##
 #######################
-def get_info(url):
-    conn.request("GET", url, headers=headers)
-    response = conn.getresponse()
-    data = response.read().decode("utf-8")
-    return json.loads(data)
+def get_info(access_point):
+    url = f"{base_url}{access_point}"
+    response = requests.get(url, headers=headers)
+
+    # Check if the request was successful
+    if response.status_code == 200:
+        return response.json()
+    else:
+        print(f"Error: {response.status_code}")
+        print(response.text)
 
 ######################################
 ## GET BASIC TEAM INFO OF ALL TEAMS ##
@@ -28,12 +32,12 @@ def get_all_teams_info():
 ## OBTAIN RAPIDAPI TEAM ID ##
 #############################
 def get_team_id(team_name):
-    json_data = get_all_teams_info()
+    data = get_all_teams_info()
     for i in range(0, 32):
-        nickname = json_data['teams'][i]['nickname']
+        nickname = data['teams'][i]['nickname']
         if nickname == team_name:
             break
-    return json_data['teams'][i]['id']
+    return data['teams'][i]['id']
 
 ###################################################
 ## GET MORE SPECIFIC TEAM INFO OF CURRENT SEASON ##
@@ -47,15 +51,15 @@ def get_team_info(team_name):
 ##################################################
 def get_team_records_info(team_name, season):
     team_id = get_team_id(team_name)
-    json_data = get_info(f"/nfl-team-record?id={team_id}&year={season}")
-    return json_data
+    data = get_info(f"/nfl-team-record?id={team_id}&year={season}")
+    return data
 
 #######################################################
 ## GET WIN-LOSS RECORD FOR A TEAM FOR A GIVEN SEASON ##
 #######################################################
 def get_team_win_loss_record(team_name, season):
-    json_data = get_team_records_info(team_name, season)
-    return json_data['items'][0]['summary']
+    data = get_team_records_info(team_name, season)
+    return data['items'][0]['summary']
 
 #######################################################
 ## PRINT A TEAM'S WIN-LOSS RECORD FOR A GIVEN SEASON ##
@@ -68,8 +72,8 @@ def print_team_win_loss_record(team_name, season):
 ## GET # OF WINS FOR A TEAM FOR A GIVEN SEASON ##
 #################################################
 def get_team_wins(team_name, season):
-    json_data = get_team_records_info(team_name, season)
-    return json_data['items'][0]['stats'][19]['value']
+    data = get_team_records_info(team_name, season)
+    return data['items'][0]['stats'][19]['value']
 
 ###################################################
 ## PRINT # OF WINS FOR A TEAM FOR A GIVEN SEASON ##
@@ -82,8 +86,8 @@ def print_team_wins(team_name, season):
 ## GET # OF LOSSES FOR A TEAM FOR A GIVEN SEASON ##
 ###################################################
 def get_team_losses(team_name, season):
-    json_data = get_team_records_info(team_name, season)
-    return json_data['items'][0]['stats'][10]['value']
+    data = get_team_records_info(team_name, season)
+    return data['items'][0]['stats'][10]['value']
 
 #####################################################
 ## PRINT # OF LOSSES FOR A TEAM FOR A GIVEN SEASON ##
@@ -97,21 +101,21 @@ def print_team_losses(team_name, season):
 ######################################################################
 def get_team_schedule_info(team_name):
     team_id = get_team_id(team_name)
-    json_data = get_info(f"/nfl-team-schedule?id={team_id}")
-    return json_data
+    data = get_info(f"/nfl-team-schedule?id={team_id}")
+    return data
 
 ####################################################################
 ## GET THE OPPONENT'S NAME FOR A GIVEN WEEK IN THE CURRENT SEASON ##
 ####################################################################
 def get_opponent_name(team_name, week):
-    json_data = get_team_schedule_info(team_name)
-    bye_week = json_data['byeWeek']
+    data = get_team_schedule_info(team_name)
+    bye_week = data['byeWeek']
     if week >= int(bye_week):
         week -= 1
 
-    opponent = json_data['events'][week-1]['competitions'][0]['competitors'][0]['team']['nickname']
+    opponent = data['events'][week-1]['competitions'][0]['competitors'][0]['team']['nickname']
     if opponent == team_name:
-        opponent = json_data['events'][week-1]['competitions'][0]['competitors'][1]['team']['nickname']
+        opponent = data['events'][week-1]['competitions'][0]['competitors'][1]['team']['nickname']
     return opponent
 
 ######################################################################
@@ -125,16 +129,16 @@ def print_opponent_name(team_name, week):
 ## GET A TEAM'S WEEKLY SCHEDULE FOR THE CURRENT SEASON ##
 #########################################################
 def get_team_schedule(team_name):
-    json_data = get_team_schedule_info(team_name)
-    bye_week = json_data['byeWeek']
+    data = get_team_schedule_info(team_name)
+    bye_week = data['byeWeek']
 
     current_week = 1
     schedule = []
 
     for i in range(0, 17):
-        opp = (json_data['events'][i]['competitions'][0]['competitors'][0]['team']['nickname'])
+        opp = (data['events'][i]['competitions'][0]['competitors'][0]['team']['nickname'])
         if opp == team_name:
-            opp = json_data['events'][i]['competitions'][0]['competitors'][1]['team']['nickname']
+            opp = data['events'][i]['competitions'][0]['competitors'][1]['team']['nickname']
         schedule.append(opp)
         
         current_week += 1
@@ -159,12 +163,15 @@ def print_team_schedule(team_name):
 ###########################
 ## USEFUL FUNCTION CALLS ##
 ###########################
-# team_win_loss_record = get_team_win_loss_record(team_name, year)
+# team_win_loss_record = get_team_win_loss_record("Patriots", 2017)
 # team_wins = get_team_wins(team_name, year)
 # team_losses = get_team_losses(team_name, year)
 # print_opponent_name("Patriots", 12)
-# print_team_schedule("Jets")
-print_team_win_loss_record("Patriots", 2017)
+#print_team_schedule("Jets")
+#print(get_team_schedule_info("Jets"))
+#print_team_win_loss_record("Patriots", 2019)
+#print_team_wins("Patriots", 2017)
+get_opponent_name("Patriots", 16)
 
 
 
